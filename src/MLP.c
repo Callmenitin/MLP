@@ -4,12 +4,14 @@
 #include<math.h>
 #include<string.h>
 
-double **inputs;
+double **inputs,*outputs;
+double learningRate;
 double **hidden,**weights;
 int rows,start,end,output;
 int isNumerical=-1;
 struct OutputMap *mappings;
 int _mapInt=0;
+int _input;
 
 double sigmoid(double x){
 return 1/(1+exp(-x));
@@ -32,12 +34,14 @@ end=e;
 output=o;    
 }
 
-void classify(struct Classifier obj){
+void feedForward(struct Classifier obj,struct Neuron inputNeurons[_input],struct Neuron hiddenNeurons[][_input]);
+
+void train(struct Classifier obj){
 
 struct Neuron inputNeurons[obj.inputNodes];
 struct Neuron hiddenNeurons[obj.hiddenLayers][obj.inputNodes];
 
-
+_input=obj.inputNodes;
 for(int i=0;i<obj.inputNodes;i++)
 {
 for(int j=0;j<obj.inputNodes;j++)
@@ -47,32 +51,42 @@ inputNeurons[i].weights[j]=(rand()%10);
 }
 }
 
+for(int i=0;i<obj.hiddenLayers-1;i++)
+{
+for(int j=0;j<obj.inputNodes;j++)
+{
+for(int k=0;k<obj.inputNodes;k++) 
+hiddenNeurons[i][j].weights[k]=(rand()%10);
+}
+}
+
+
+for(int j=0;j<obj.inputNodes;j++)
+{
+hiddenNeurons[obj.hiddenLayers-1][j].weights[0]=(rand()%10);
+}
+
 inputs=(double **)malloc(rows*sizeof(double*));
+
 for(int i=0;i<rows;i++)
 {
 inputs[i] =(double *)malloc(end*sizeof(double));
 }
+
 mappings=(struct OutputMap*)malloc(rows*sizeof(struct OutputMap));
+outputs=(double *)malloc(rows*sizeof(double));
+
 readCSV(obj.fileName);
 
-for(int i=0;i<rows;i++){
-    printf("Row:%d\n",i+1);
-    for(int j=0;j<end;j++){
-printf("%f, ",inputs[i][j]);
-
-    }
-    printf("\n");
-}
-
- for(int j=0;j<_mapInt;j++){
-printf("%s:%d\n, ",mappings[j]._class,mappings[j].value);
-
-    }
 
 
+
+
+
+
+//feedForward(obj,inputNeurons,hiddenNeurons);
 
 }
-
 
 
 void readCSV(char *fileName){
@@ -159,6 +173,26 @@ mappings[_mapInt].value=_mapInt;
 ++_mapInt;
 return find;
 }
+
+}
+
+double meanSquared(){
+ double total=0.0;
+ for(int i=0;i<rows;i++){
+   total=total+(outputs[i]-inputs[output][i])*(outputs[i]-inputs[output][i]);
+ }
+return total/(double)rows;
+}
+
+double crossEntropy(double x){
+
+    return -1*log(x);
+}
+
+void feedForward(struct Classifier obj,struct Neuron inputNeurons[_input],struct Neuron outputNeurons[][_input])
+{
+
+
 
 }
 
