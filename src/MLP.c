@@ -16,6 +16,7 @@ int _mapInt=0;
 int _input;
 int _output_neurons;
 int _hiddenNodes=2;
+int _data_ptr;
 
 double sigmoid(double x){
 return 1.0/(1.0+exp(-x));
@@ -38,8 +39,8 @@ _end=e;
 output=o;    
 }
 
-void feedForward(struct Classifier obj,struct Neuron inputNeurons[_input],struct Neuron hiddenNeurons[][_input],struct OutputNeuron outputNeurons[_mapInt],int a,int b);
-void backPropagation(struct Classifier obj,struct Neuron inputNeurons[_input],struct Neuron hiddenNeurons[][_input],struct OutputNeuron outputNeurons[_mapInt],int a,int b);
+void feedForward(struct Classifier obj,struct Neuron inputNeurons[_hiddenNodes],struct Neuron hiddenNeurons[][_hiddenNodes],struct OutputNeuron outputNeurons[_mapInt],int a,int b);
+void backPropagation(struct Classifier obj,struct Neuron inputNeurons[_hiddenNodes],struct Neuron hiddenNeurons[][_hiddenNodes],struct OutputNeuron outputNeurons[_mapInt],int a,int b);
 
 void train(struct Classifier obj){
 
@@ -53,7 +54,7 @@ for(int i=0;i<obj.inputNodes;i++)
 {
 for(int j=0;j<_hiddenNodes;j++)
 {
-inputNeurons[i].weights[j]=0.0005*(rand()%10)+0.0001;
+inputNeurons[i].weights[j]=0.005*(rand()%10);
 }
 }
 
@@ -64,7 +65,7 @@ for(int i=0;i<obj.hiddenLayers-1;i++)
 for(int j=0;j<_hiddenNodes;j++)
 {
 for(int k=0;k<_hiddenNodes;k++) 
-hiddenNeurons[i][j].weights[k]=0.0005*(rand()%10)+0.0001;
+hiddenNeurons[i][j].weights[k]=0.005*(rand()%10);
 }
 }
 
@@ -87,31 +88,34 @@ _hidden_weights[i] =(struct Neuron*)malloc(_hiddenNodes*sizeof(struct Neuron));
 
 readCSV(obj.fileName);
 
-_output_neurons=_mapInt;
 
+if(isNumerical==0){
+_output_neurons=_mapInt;
+}
+else{
+  _output_neurons=1;  
+}
 struct OutputNeuron outputNeurons[_output_neurons];
 
-//Weight initialization from last hidden layer to output layer
 for(int i=0;i<_hiddenNodes;i++)
 {
 for(int j=0;j<_output_neurons;j++)
 {
-hiddenNeurons[obj.hiddenLayers-1][i].weights[j]=0.0005*(rand()%10)+0.0001;
+hiddenNeurons[obj.hiddenLayers-1][i].weights[j]=0.005*(rand()%10);
 }
 }
-
 
 for(int i=0;i<obj.iterations;i++)
 {
 int start,end;
-printf("Iterations:%d    ",i+1);
+printf("Iterations:%d    \n",i+1);
 
     if(obj.backPropagation==STOCHASTIC){
-        start=(rand()%rows)+1;
+        start=(rand()%rows);
         end=start+1;
     }
-    if(obj.backPropagation==MINI_BATCH){
-        start=(rand()%(rows-obj.batchSize))+1;
+    else if(obj.backPropagation==MINI_BATCH){
+        start=rand()%(rows-obj.batchSize);
         end=start+obj.batchSize;
     }
     else{
@@ -198,9 +202,17 @@ if(str[0]=='-')
 {
 start=1;
 }
-while(start<end){
-    if(!(str[start]>='0'&&str[start]<='9'))
-        return 0;
+while(str[start]!='\n')
+{
+    if(!((str[start]>='0'&&str[start]<='9')))
+       {
+if(str[start]!='.')
+    {
+    return 0;
+}
+
+
+       } 
     ++start;
 }
     return 1;
@@ -240,17 +252,18 @@ double crossEntropy(struct OutputNeuron output[])
     return -1*sum;
 }
 
-void feedForward(struct Classifier obj,struct Neuron inputNeurons[_input],struct Neuron hiddenNeurons[][_input],struct OutputNeuron outputNeurons[_mapInt],int start,int end)
+void feedForward(struct Classifier obj,struct Neuron inputNeurons[_hiddenNodes],struct Neuron hiddenNeurons[][_hiddenNodes],struct OutputNeuron outputNeurons[_mapInt],int a,int b)
 {
 
-for(int i=start;i<end;i++)
+for(int i=a;i<b;i++)
 {
 int _itr_start,_itr_end;
+_data_ptr=i;
 
 if(output==_start)
 {_itr_start=output+1; _itr_end=_end;}
 else
-{_itr_start=start; _itr_end=_end-1; }  
+{_itr_start=_start; _itr_end=_end-1; }  
 
 //From input Layer to first hidden layer
 for(int k=0;k<_hiddenNodes;k++)
@@ -293,6 +306,7 @@ hiddenNeurons[k][_neuron].value+=_value*hiddenNeurons[previous][ptr].weights[_ne
 }
 }
 
+
 //From last hidden layer to output layer
 
 for(int ii=0;ii<_output_neurons;ii++)
@@ -316,14 +330,13 @@ outputNeurons[ii].net+=_value*hiddenNeurons[hidden_layer][jj].weights[ii];
 }
 
 double total=0.0;
-
+if(isNumerical==0)
+{
 for(int ptr=0;ptr<_output_neurons;ptr++)
 {
     total+=exp(outputNeurons[ptr].net);
 }
-for(int ptr=0;ptr<_output_neurons;ptr++){
-    outputNeurons[ptr].soft=exp(outputNeurons[ptr].net)/total;
-}
+
 double _actual=inputs[i][output];
 
 for(int ptr=0;ptr<_output_neurons;ptr++)
@@ -337,12 +350,28 @@ outputNeurons[ptr].actual=1.0;
 outputNeurons[ptr].actual=0.0;
     } 
 }
+
+for(int ptr=0;ptr<_output_neurons;ptr++){
+    outputNeurons[ptr].soft=exp(outputNeurons[ptr].net)/total; 
+}
+
 errors[i]=crossEntropy(outputNeurons);
+}
+else{
+double _mse=MSE(outputNeurons[0].net,inputs[i][output]);
+outputNeurons[0].actual=inputs[i][output];
+errors[i]=_mse;
+}
+
 } 
 
 }
 
-void backPropagation(struct Classifier obj,struct Neuron inputNeurons[_input],struct Neuron hiddenNeurons[][_input],struct OutputNeuron outputNeurons[_mapInt],int start,int end)
+double MSE(double actual,double expected){
+return (actual-expected)*(actual-expected);
+}
+
+void backPropagation(struct Classifier obj,struct Neuron inputNeurons[_hiddenNodes],struct Neuron hiddenNeurons[][_hiddenNodes],struct OutputNeuron outputNeurons[_mapInt],int start,int end)
 {
 
 double average=0.0;
@@ -369,19 +398,35 @@ _term1=mytanh(hiddenNeurons[last_layer][i].value);
 else{
 _term1=relu(hiddenNeurons[last_layer][i].value);
 }
-double _term2=outputNeurons[j].soft*(1-outputNeurons[j].soft);
-double _term3=(outputNeurons[j].soft-outputNeurons[j].actual);
+double _term2,_term3;
+if(isNumerical==0)
+{
+_term2=outputNeurons[j].soft*(1-outputNeurons[j].soft);
+_term3=(outputNeurons[j].soft-outputNeurons[j].actual);
+}
+else{
+_term2=1;
+_term3=(outputNeurons[j].net-outputNeurons[j].actual);
+}
 double _partial_derivative=_term1*_term2*_term3;
 hiddenNeurons[last_layer][i].weights[j]=hiddenNeurons[last_layer][i].weights[j]-obj.learningRate*_partial_derivative;
 }
 
 }
 
+if(isNumerical==0)
+{
 for(int i=0;i<_mapInt;i++)
 {
     double _first=outputNeurons[i].soft-outputNeurons[i].actual;
     double _second=outputNeurons[i].soft*(1-outputNeurons[i].soft);
     outputNeurons[i].error_wrt_net=_first*_second;
+}
+}
+else{
+double _first=outputNeurons[0].net-outputNeurons[0].actual;
+double _second=1;
+outputNeurons[0].error_wrt_net=_first*_second;
 }
 
 int _hidden_itr=obj.hiddenLayers-2;
@@ -396,26 +441,32 @@ double _term1,_term2;
 if(obj.activationFunction==SIGMOID){
 _term1=sigmoid(hiddenNeurons[_hidden_itr][i].value);
 _term2=sigmoid(hiddenNeurons[_hidden_itr+1][j].value);
+double temp=1-_term2;
+_term2=temp*_term2;
 }
 else if(obj.activationFunction==TANH){
 _term1=mytanh(hiddenNeurons[_hidden_itr][i].value);
 _term2=mytanh(hiddenNeurons[_hidden_itr+1][j].value);
+double temp=1-_term2;
+_term2=temp*_term2;
 }
 else{
 _term1=relu(hiddenNeurons[_hidden_itr][i].value);
-_term2=relu(hiddenNeurons[_hidden_itr+1][j].value);
+double temp=relu(hiddenNeurons[_hidden_itr+1][j].value);
+if(temp>0){
+    _term2=1;
+}
+else{_term2=0;}
 }
 double _term3=0.0;
 for(int ii=0;ii<_mapInt;ii++)
 {
-
 double weightFactor=1;
 for(int ptr=_hidden_itr;ptr<obj.hiddenLayers;ptr++)
 {
 weightFactor=weightFactor*hiddenNeurons[ptr][ii].weights[ii];
 }
 _term3+=outputNeurons[ii].error_wrt_net*weightFactor;
-
 }
 double _total=_term1*_term2*_term3;
 hiddenNeurons[_hidden_itr][i].weights[j]=hiddenNeurons[_hidden_itr][i].weights[j]-obj.learningRate*_total;
@@ -431,30 +482,37 @@ if(output==_start)
 else
 {_itr_start=start; } 
 
+
 for(int i=0;i<obj.inputNodes;i++)
 {
 for(int edge=0;edge<_hiddenNodes;edge++)
 {
-double _data_value=inputs[rows-5][_itr_start];
+double _data_value=inputs[_data_ptr][_itr_start];
 double _term1,_term2;
-
 _term1=_data_value;
 if(obj.activationFunction==SIGMOID){
 _term2=sigmoid(hiddenNeurons[0][edge].value);
+double temp=1-_term2;
+_term2=temp*_term2;
 }
 else if(obj.activationFunction==TANH){
-_term2=sigmoid(hiddenNeurons[0][edge].value);
+_term2=mytanh(hiddenNeurons[0][edge].value);
+double temp=1-_term2;
+_term2=temp*_term2;
 }
 else{
-_term2=sigmoid(hiddenNeurons[0][edge].value);
+double temp=sigmoid(hiddenNeurons[0][edge].value);
+if(temp>0){
+    _term2=1;
+}
+else{_term2=0;}
 }
 
 double _term3=0.0;
-for(int ii=0;ii<_mapInt;ii++)
+for(int ii=0;ii<1;ii++)
 {
 _term3+=outputNeurons[ii].error_wrt_net*inputNeurons[i].weights[edge];
 }
-
 double _total=_term1*_term2*_term3;
 inputNeurons[i].weights[edge]=inputNeurons[i].weights[edge]-obj.learningRate*_total;
 }
